@@ -189,6 +189,22 @@ fi
 success "GNOME installed and services enabled."
 
 # =============================================================================
+# 6b. Power management for GNOME
+# =============================================================================
+info "Configuring power management..."
+
+pacman -S --needed --noconfirm \
+  upower \
+  power-profiles-daemon \
+  acpi \
+  || abort "Failed to install power management packages."
+
+systemctl enable --now upower
+systemctl enable --now power-profiles-daemon
+
+success "Power management configured."
+
+# =============================================================================
 # 7. Install developer tools
 # =============================================================================
 info "Installing developer tools..."
@@ -445,8 +461,8 @@ success "GNOME extensions installed."
 # =============================================================================
 info "Configuring GNOME defaults..."
 
-# Input sources — French keyboard
-run_gsettings "org.gnome.desktop.input-sources sources \"[('xkb', 'fr')]\""
+# Input sources — French + English (for QWERTY keyboards with French locales)
+run_gsettings "org.gnome.desktop.input-sources sources \"[('xkb', 'fr'), ('xkb', 'us')]\""
 
 # Clock format — 24h
 run_gsettings "org.gnome.desktop.interface clock-format '24h'"
@@ -508,13 +524,15 @@ success "Git configured."
 # =============================================================================
 info "Configuring user shell defaults..."
 
-# Set VSCode as the default editor system-wide
-echo 'export EDITOR="code --wait"' >> "$USER_HOME/.bashrc"
-echo 'export VISUAL="code --wait"' >> "$USER_HOME/.bashrc"
-chown "$USERNAME:" "$USER_HOME/.bashrc"
+# Set VSCode as the default editor system-wide (idempotent)
+if ! grep -q 'export EDITOR="code --wait"' "$USER_HOME/.bashrc" 2>/dev/null; then
+  echo 'export EDITOR="code --wait"' >> "$USER_HOME/.bashrc"
+  echo 'export VISUAL="code --wait"' >> "$USER_HOME/.bashrc"
+fi
 
-# Add useful aliases to user's .bashrc
-cat >> "$USER_HOME/.bashrc" <<'EOF'
+# Add useful aliases to user's .bashrc (idempotent)
+if ! grep -q '# --- Custom aliases ---' "$USER_HOME/.bashrc" 2>/dev/null; then
+  cat >> "$USER_HOME/.bashrc" <<'EOF'
 
 # --- Custom aliases ---
 alias ll='eza -la --icons=auto'
@@ -529,6 +547,9 @@ alias vi='code'
 alias nano='code'
 alias code='code --no-sandbox'
 EOF
+fi
+
+chown "$USERNAME:" "$USER_HOME/.bashrc"
 
 # Set default shell to bash if not already
 chsh -s /bin/bash "$USERNAME" 2>/dev/null || true
@@ -559,7 +580,7 @@ info "  - French locale configuration"
 info "  - Developer tools (Git, Neovim, etc.)"
 info "  - OpenCode (AI coding assistant) with qwen3.6-plus-free"
 info "  - VSCode + 30+ web dev extensions"
-info "  - Firefox, Google Chrome, Chromium, Brave"
+info "  - Firefox, Google Chrome, Brave"
 info "  - Docker + Docker Compose (enabled & started)"
 info "  - LibreOffice (French), Evince (PDF)"
 info "  - VLC, Thunderbird (French), Flameshot"
