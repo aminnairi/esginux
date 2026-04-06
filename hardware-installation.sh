@@ -52,6 +52,11 @@ if [[ ! -f /etc/arch-release ]]; then
   abort "This script must be run from an Arch Linux live environment."
 fi
 
+# Prevent running on an already-installed system
+if [[ ! -d /run/archiso/bootmnt ]]; then
+  abort "This script must be run from the Arch Linux live ISO, not from an installed system."
+fi
+
 # =============================================================================
 # 1. Detect available disks
 # =============================================================================
@@ -72,13 +77,10 @@ for i in "${!DISKS[@]}"; do
 done
 echo ""
 
-read -p "Select the target disk number: " DISK_INDEX
-DISK_INDEX=${DISK_INDEX:-0}
-
-# Validate input is a number
-if ! [[ "$DISK_INDEX" =~ ^[0-9]+$ ]]; then
-  abort "Invalid disk selection: must be a number."
-fi
+read -p "Select the target disk number [0]: " DISK_INDEX
+DISK_INDEX="${DISK_INDEX:-0}"
+DISK_INDEX=$(echo "$DISK_INDEX" | tr -cd '0-9')
+DISK_INDEX="${DISK_INDEX:-0}"
 
 if [[ -z "${DISKS[$DISK_INDEX]+x}" ]]; then
   abort "Invalid disk selection: index out of range."
