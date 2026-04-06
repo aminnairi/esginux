@@ -105,17 +105,7 @@ info "BOOT size: ${BOOT_SIZE_MB} Mo (1 Go)"
 info "ROOT size: remaining space (will be LUKS2 encrypted)"
 
 # =============================================================================
-# 3. Confirm before wiping the disk
-# =============================================================================
-echo ""
-warn "WARNING: All data on $DISK will be ERASED."
-read -p "Type 'YES' to continue: " CONFIRM
-if [[ "$CONFIRM" != "YES" ]]; then
-  abort "Installation cancelled."
-fi
-
-# =============================================================================
-# 4. Wipe existing partition table and create new GPT layout
+# 3. Wipe existing partition table and create new GPT layout
 # =============================================================================
 info "Wiping existing partition table on $DISK ..."
 wipefs -a "$DISK" >/dev/null 2>&1
