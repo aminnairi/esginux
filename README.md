@@ -6,6 +6,9 @@ Automated Arch Linux installation scripts.
 
 ## Hardware Installation
 
+> [!WARNING]
+> This script will **wipe the entire selected disk** and use its **full capacity** to create the partition layout. All existing data will be permanently lost.
+
 Boot from the [Arch Linux ISO](https://archlinux.org/download/), connect to the internet, then:
 
 ```bash
