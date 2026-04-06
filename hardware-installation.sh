@@ -265,56 +265,56 @@ if [[ "$USER_PASSWORD" != "$USER_PASSWORD_CONFIRM" ]]; then
 fi
 
 # =============================================================================
-# 12. Configure the installed system (arch-chroot -c)
+# 12. Configure the installed system (arch-chroot)
 # =============================================================================
 info "Configuring the installed system..."
 
 # --- Timezone ---
-arch-chroot /mnt -c 'ln -sf /usr/share/zoneinfo/Europe/Paris /etc/localtime'
-arch-chroot /mnt -c 'hwclock --systohc'
+arch-chroot /mnt ln -sf /usr/share/zoneinfo/Europe/Paris /etc/localtime
+arch-chroot /mnt hwclock --systohc
 
 # --- Locale ---
-arch-chroot /mnt -c "sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen"
-arch-chroot /mnt -c "sed -i 's/^#fr_FR.UTF-8 UTF-8/fr_FR.UTF-8 UTF-8/' /etc/locale.gen"
-arch-chroot /mnt -c 'locale-gen'
-arch-chroot /mnt -c 'echo "LANG=en_US.UTF-8" > /etc/locale.conf'
+arch-chroot /mnt sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+arch-chroot /mnt sed -i 's/^#fr_FR.UTF-8 UTF-8/fr_FR.UTF-8 UTF-8/' /etc/locale.gen
+arch-chroot /mnt locale-gen
+arch-chroot /mnt bash -c 'echo "LANG=en_US.UTF-8" > /etc/locale.conf'
 
 # --- Keyboard ---
-arch-chroot /mnt -c 'echo "KEYMAP=fr" > /etc/vconsole.conf'
+arch-chroot /mnt bash -c 'echo "KEYMAP=fr" > /etc/vconsole.conf'
 
 # --- Hostname ---
-arch-chroot /mnt -c "echo '$HOSTNAME' > /etc/hostname"
-arch-chroot /mnt -c "cat > /etc/hosts <<EOF
+arch-chroot /mnt bash -c "echo '$HOSTNAME' > /etc/hostname"
+arch-chroot /mnt bash -c "cat > /etc/hosts <<EOF
 127.0.0.1   localhost
 ::1         localhost
 127.0.1.1   ${HOSTNAME}.localdomain ${HOSTNAME}
 EOF"
 
 # --- Root password ---
-arch-chroot /mnt -c "echo 'root:${ROOT_PASSWORD}' | chpasswd"
+arch-chroot /mnt bash -c "echo 'root:${ROOT_PASSWORD}' | chpasswd"
 
 # --- Create regular user with sudo access ---
-arch-chroot /mnt -c "useradd -m -G wheel -s /bin/bash '${USERNAME}'"
-arch-chroot /mnt -c "echo '${USERNAME}:${USER_PASSWORD}' | chpasswd"
+arch-chroot /mnt useradd -m -G wheel -s /bin/bash "${USERNAME}"
+arch-chroot /mnt bash -c "echo '${USERNAME}:${USER_PASSWORD}' | chpasswd"
 
 # --- Sudo: ensure wheel group has full sudo access ---
-arch-chroot /mnt -c "sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers"
-arch-chroot /mnt -c "sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers" 2>/dev/null || true
+arch-chroot /mnt sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+arch-chroot /mnt sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers 2>/dev/null || true
 
 # --- Initramfs: add encrypt hook for LUKS ---
-arch-chroot /mnt -c "sed -i 's/^HOOKS=(.*)/HOOKS=(base udev autodetect modconf kms keyboard keymap consolefont block encrypt filesystems fsck)/' /etc/mkinitcpio.conf"
-arch-chroot /mnt -c 'mkinitcpio -P'
+arch-chroot /mnt sed -i 's/^HOOKS=(.*)/HOOKS=(base udev autodetect modconf kms keyboard keymap consolefont block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+arch-chroot /mnt mkinitcpio -P
 
 # --- Bootloader (GRUB) with LUKS support ---
 CRYPT_UUID=$(blkid -s UUID -o value "$ROOT_PART")
-arch-chroot /mnt -c "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB"
-arch-chroot /mnt -c "sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=\"/GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${CRYPT_UUID}:cryptroot:allow-discards /' /etc/default/grub"
-arch-chroot /mnt -c 'grub-mkconfig -o /boot/grub/grub.cfg'
+arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
+arch-chroot /mnt sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=\"/GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${CRYPT_UUID}:cryptroot:allow-discards /" /etc/default/grub
+arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
 # --- Enable services ---
-arch-chroot /mnt -c 'systemctl enable NetworkManager'
-arch-chroot /mnt -c 'systemctl enable sshd'
-arch-chroot /mnt -c 'systemctl enable dhcpcd'
+arch-chroot /mnt systemctl enable NetworkManager
+arch-chroot /mnt systemctl enable sshd
+arch-chroot /mnt systemctl enable dhcpcd
 
 success "System configured."
 
