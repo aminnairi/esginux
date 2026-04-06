@@ -419,6 +419,81 @@ pacman -S --needed --noconfirm \
 success "Common graphical applications installed."
 
 # =============================================================================
+# 10b. Install communication and media apps
+# =============================================================================
+info "Installing communication and media apps..."
+
+# Discord
+su - "$USERNAME" -c "yay -S --needed --noconfirm discord" 2>/dev/null || \
+  warn "Could not install Discord, skipping."
+
+# Microsoft Teams (unofficial client)
+su - "$USERNAME" -c "yay -S --needed --noconfirm teams-for-linux" 2>/dev/null || \
+  warn "Could not install Teams, skipping."
+
+# Slack
+su - "$USERNAME" -c "yay -S --needed --noconfirm slack-desktop" 2>/dev/null || \
+  warn "Could not install Slack, skipping."
+
+# Spotify
+su - "$USERNAME" -c "yay -S --needed --noconfirm spotify" 2>/dev/null || \
+  warn "Could not install Spotify, skipping."
+
+# OBS Studio
+pacman -S --needed --noconfirm \
+  obs-studio \
+  || warn "Could not install OBS Studio, skipping."
+
+success "Communication and media apps installed."
+
+# =============================================================================
+# 10c. Install IT student development tools
+# =============================================================================
+info "Installing IT student development tools..."
+
+# Networking & Security
+pacman -S --needed --noconfirm \
+  wireshark-qt \
+  nmap \
+  || warn "Could not install networking tools, skipping."
+
+# Databases
+su - "$USERNAME" -c "yay -S --needed --noconfirm dbeaver" 2>/dev/null || \
+  warn "Could not install DBeaver, skipping."
+
+# API Testing
+su - "$USERNAME" -c "yay -S --needed --noconfirm insomnia" 2>/dev/null || \
+  warn "Could not install Insomnia, skipping."
+
+# Note-taking
+su - "$USERNAME" -c "yay -S --needed --noconfirm obsidian" 2>/dev/null || \
+  warn "Could not install Obsidian, skipping."
+
+# E-book management
+pacman -S --needed --noconfirm \
+  calibre \
+  || warn "Could not install Calibre, skipping."
+
+# Remote Access
+pacman -S --needed --noconfirm \
+  remmina \
+  freerdp \
+  || warn "Could not install Remmina, skipping."
+
+# FTP/SFTP
+pacman -S --needed --noconfirm \
+  filezilla \
+  || warn "Could not install FileZilla, skipping."
+
+# Graphics
+pacman -S --needed --noconfirm \
+  gimp \
+  inkscape \
+  || warn "Could not install graphics tools, skipping."
+
+success "IT student development tools installed."
+
+# =============================================================================
 # 11. Install extra utilities
 # =============================================================================
 info "Installing extra utilities..."

@@ -69,10 +69,23 @@ This will install and configure:
 - **LibreOffice** (French)
 - **Evince** (PDF reader)
 - **VLC** (media player)
+- **Spotify**
+- **OBS Studio**
 - **Thunderbird** (French)
+- **Discord**, **Microsoft Teams**, **Slack**
 - **Flameshot** + GNOME Screenshot
 - **Kitty** + GNOME Console
 - Loupe, Gedit, Baobab, GNOME System Monitor, File Roller
+
+### IT Student Tools
+- **Wireshark**, **nmap** (networking & security)
+- **DBeaver** (database client)
+- **Insomnia** (API testing)
+- **Obsidian** (markdown notes)
+- **Calibre** (e-book management)
+- **Remmina** + **FreeRDP** (remote access)
+- **FileZilla** (FTP/SFTP)
+- **GIMP**, **Inkscape** (graphics)
 
 ### Extras
 - **Fonts**: Noto (CJK + emoji), JetBrains Mono + Nerd Font, Roboto, DejaVu, Liberation
