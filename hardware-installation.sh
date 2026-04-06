@@ -75,8 +75,13 @@ echo ""
 read -p "Select the target disk number: " DISK_INDEX
 DISK_INDEX=${DISK_INDEX:-0}
 
+# Validate input is a number
+if ! [[ "$DISK_INDEX" =~ ^[0-9]+$ ]]; then
+  abort "Invalid disk selection: must be a number."
+fi
+
 if [[ -z "${DISKS[$DISK_INDEX]+x}" ]]; then
-  abort "Invalid disk selection."
+  abort "Invalid disk selection: index out of range."
 fi
 
 DISK="${DISKS[$DISK_INDEX]}"
