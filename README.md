@@ -78,4 +78,4 @@ This will install and configure:
 - **Fonts**: Noto (CJK + emoji), JetBrains Mono + Nerd Font, Roboto, DejaVu, Liberation
 - **Utilities**: wget, curl, unzip, p7zip, rsync, btop, ncdu, tree, jq, Python, Node.js/npm
 - **French locale** system-wide (LANG, LC_TIME, LC_MONETARY, etc.)
-- **GNOME defaults**: 24h clock, French keyboard, natural scrolling, tap-to-click
+- **GNOME defaults**: 24h clock, French + English keyboard layouts (`Super+Space` to switch), natural scrolling, tap-to-click
