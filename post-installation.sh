@@ -53,21 +53,28 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # =============================================================================
-# 1. Collect user information
+# 1. Detect user
 # =============================================================================
 echo ""
 info "Post-installation configuration"
 echo ""
 
-# Detect the first non-root user with a home directory
-DEFAULT_USER=$(awk -F: '$3 >= 1000 && $3 < 60000 { print $1; exit }' /etc/passwd)
-read -p "Username (default: ${DEFAULT_USER:-user}): " USERNAME
-USERNAME=${USERNAME:-$DEFAULT_USER}
+# Auto-detect the invoking user (works under sudo)
+if [[ -n "${SUDO_USER:-}" ]]; then
+  USERNAME="$SUDO_USER"
+else
+  USERNAME=$(awk -F: '$3 >= 1000 && $3 < 60000 { print $1; exit }' /etc/passwd)
+fi
+
+if [[ -z "$USERNAME" ]]; then
+  read -p "No user detected. Enter username: " USERNAME
+fi
 
 if ! id "$USERNAME" &>/dev/null; then
   abort "User '$USERNAME' does not exist."
 fi
 
+info "Configuring for user: $USERNAME"
 USER_HOME=$(eval echo "~$USERNAME")
 
 # =============================================================================
@@ -319,11 +326,6 @@ pacman -S --needed --noconfirm \
   firefox \
   firefox-i18n-fr \
   || warn "Could not install Firefox, skipping."
-
-# Chromium
-pacman -S --needed --noconfirm \
-  chromium \
-  || warn "Could not install Chromium, skipping."
 
 # Brave (via AUR)
 su - "$USERNAME" -c "yay -S --noconfirm brave-bin" 2>/dev/null || \

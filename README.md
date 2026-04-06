@@ -54,7 +54,6 @@ This will install and configure:
 ### Browsers
 - **Firefox** (French)
 - **Google Chrome**
-- **Chromium**
 - **Brave**
 
 ### Developer Tools
