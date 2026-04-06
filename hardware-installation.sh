@@ -118,8 +118,8 @@ fi
 # 4. Wipe existing partition table and create new GPT layout
 # =============================================================================
 info "Wiping existing partition table on $DISK ..."
-wipefs -a "$DISK" >/dev/null 2>&1 || true
-sgdisk --zap-all "$DISK" >/dev/null 2>&1 || true
+wipefs -a "$DISK" >/dev/null 2>&1
+sgdisk --zap-all "$DISK" >/dev/null 2>&1
 
 info "Creating GPT partition table..."
 
