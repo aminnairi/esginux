@@ -4,7 +4,7 @@ Automated Arch Linux installation scripts.
 
 > **Always read the script before running it.**
 
-## Hardware Installation
+## Installation
 
 > [!WARNING]
 > This script will **wipe the entire selected disk** and use its **full capacity** to create the partition layout. All existing data will be permanently lost.
@@ -13,13 +13,13 @@ Boot from the [Arch Linux ISO](https://archlinux.org/download/), connect to the 
 
 ```bash
 # 1. Download the script
-curl -fsSL https://aminnairi.github.io/esginux/hardware-installation.sh -o hardware-installation.sh
+curl -fsSL https://aminnairi.github.io/esginux/installation.sh -o installation.sh
 
 # 2. Read it
-less hardware-installation.sh
+less installation.sh
 
 # 3. Run it
-bash hardware-installation.sh
+bash installation.sh
 ```
 
 This will:
@@ -33,19 +33,19 @@ This will:
 - **Create** root + unprivileged user (wheel/sudo access)
 - **Reboot** automatically
 
-## Post-Installation
+## Update
 
 After the first boot, log in and:
 
 ```bash
 # 1. Download the script
-curl -fsSL https://aminnairi.github.io/esginux/post-installation.sh -o post-installation.sh
+curl -fsSL https://aminnairi.github.io/esginux/update.sh -o update.sh
 
 # 2. Read it
-less post-installation.sh
+less update.sh
 
 # 3. Run it
-bash post-installation.sh
+sudo bash update.sh
 ```
 
 This will install and configure:
@@ -53,6 +53,7 @@ This will install and configure:
 ### Desktop
 - **GNOME** + Tweaks + Shell Extensions (AppIndicator, Dash to Dock, Caffeine, Clipboard Indicator, Burn My Windows)
 - **GDM** display manager
+- **Power management** (UPower, Power Profiles Daemon)
 
 ### Browsers
 - **Firefox** (French)
@@ -62,11 +63,10 @@ This will install and configure:
 ### Developer Tools
 - **VSCode** with 30+ extensions (ESLint, Prettier, Tailwind, Docker, GitLens, Copilot, Volar, Svelte, Python, Rust, Go, Remote SSH, Dev Containers…)
 - **OpenCode** — AI coding assistant pre-configured with `qwen3.6-plus-free` via Zen (free, no API key)
-- **Git** — configured with `main` default branch, rebase pulls, VSCode as editor
 - **Neovim**, tmux, ripgrep, fzf, bat, eza, zoxide, starship, lazygit, meld
 
 ### Containers
-- **Docker** + Docker Compose (enabled, started, user in docker group)
+- **Docker** + Docker Compose (enabled & started, user in docker group)
 
 ### Applications
 - **LibreOffice** (French)
