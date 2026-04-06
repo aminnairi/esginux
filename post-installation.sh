@@ -235,14 +235,14 @@ success "Developer tools installed."
 # 8. Install VSCode (via AUR)
 # =============================================================================
 info "Installing Visual Studio Code..."
-su - "$USERNAME" -c "yay -S --noconfirm visual-studio-code-bin"
+su - "$USERNAME" -c "yay -S --needed --noconfirm visual-studio-code-bin"
 success "VSCode installed."
 
 # =============================================================================
 # 8b. Install and configure OpenCode (AI coding assistant)
 # =============================================================================
 info "Installing OpenCode (AI coding assistant)..."
-su - "$USERNAME" -c "yay -S --noconfirm opencode"
+su - "$USERNAME" -c "yay -S --needed --noconfirm opencode"
 success "OpenCode installed."
 
 # Configure OpenCode with qwen3.6-plus-free via Zen (free, no API key needed)
@@ -329,7 +329,7 @@ success "VSCode extensions installed."
 # 9. Install Google Chrome (via AUR)
 # =============================================================================
 info "Installing Google Chrome..."
-su - "$USERNAME" -c "yay -S --noconfirm google-chrome"
+su - "$USERNAME" -c "yay -S --needed --noconfirm google-chrome"
 success "Google Chrome installed."
 
 # =============================================================================
@@ -344,7 +344,7 @@ pacman -S --needed --noconfirm \
   || warn "Could not install Firefox, skipping."
 
 # Brave (via AUR)
-su - "$USERNAME" -c "yay -S --noconfirm brave-bin" 2>/dev/null || \
+su - "$USERNAME" -c "yay -S --needed --noconfirm brave-bin" 2>/dev/null || \
   warn "Could not install Brave, skipping."
 
 # Set Firefox as default browser
@@ -488,36 +488,6 @@ run_gsettings "org.gnome.desktop.default-applications.office.calendar exec 'org.
 run_gsettings "org.gnome.desktop.default-applications.office.tasks exec 'org.gnome.Tasks'"
 
 success "GNOME defaults configured."
-
-# =============================================================================
-# 14. Configure Git for the user
-# =============================================================================
-info "Configuring Git..."
-
-read -p "Git user name (default: $USERNAME): " GIT_NAME
-GIT_NAME=${GIT_NAME:-$USERNAME}
-
-read -p "Git user email: " GIT_EMAIL
-GIT_EMAIL=${GIT_EMAIL:-}
-
-if [[ -z "$GIT_EMAIL" ]]; then
-  warn "No email provided, skipping git user.email configuration."
-fi
-
-su - "$USERNAME" -c "git config --global user.name '${GIT_NAME}'"
-su - "$USERNAME" -c "git config --global init.defaultBranch main"
-
-if [[ -n "$GIT_EMAIL" ]]; then
-  su - "$USERNAME" -c "git config --global user.email '${GIT_EMAIL}'"
-fi
-
-# Nice Git defaults
-su - "$USERNAME" -c "git config --global core.editor 'code --wait'"
-su - "$USERNAME" -c "git config --global pull.rebase true"
-su - "$USERNAME" -c "git config --global fetch.prune true"
-su - "$USERNAME" -c "git config --global diff.colorMoved zebra"
-
-success "Git configured."
 
 # =============================================================================
 # 15. Configure shell for the user (optional nice defaults)
