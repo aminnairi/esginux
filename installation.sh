@@ -213,17 +213,14 @@ pacstrap -K /mnt \
   linux-firmware \
   linux-headers \
   base-devel \
-  grub \
-  efibootmgr \
+  systemd \
   networkmanager \
   vim \
   sudo \
   openssh \
   dhcpcd \
-  os-prober \
-  amd-ucode \
-  intel-ucode \
   cryptsetup \
+  pciutils \
   || abort "pacstrap failed."
 
 success "Base system installed."
@@ -305,16 +302,157 @@ arch-chroot /mnt sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NO
 arch-chroot /mnt sed -i 's/^HOOKS=(.*)/HOOKS=(base udev autodetect modconf kms keyboard keymap consolefont block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
 arch-chroot /mnt mkinitcpio -P
 
-# --- Bootloader (GRUB) with LUKS support ---
-CRYPT_UUID=$(blkid -s UUID -o value "$ROOT_PART")
-arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
-arch-chroot /mnt sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=\"/GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${CRYPT_UUID}:cryptroot:allow-discards /" /etc/default/grub
-arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+# --- Verify kernel and firmware are properly installed ---
+info "Verifying kernel and firmware installation..."
+arch-chroot /mnt pacman -S --noconfirm linux linux-firmware
+
+# Verify kernel exists
+if [[ ! -f /mnt/boot/vmlinuz-linux ]]; then
+  abort "Kernel not found at /boot/vmlinuz-linux"
+fi
+success "Kernel installed: /boot/vmlinuz-linux"
+
+# Verify initramfs exists
+if [[ ! -f /mnt/boot/initramfs-linux.img ]]; then
+  abort "Initramfs not found at /boot/initramfs-linux.img"
+fi
+success "Initramfs generated: /boot/initramfs-linux.img"
+
+# Verify microcode is installed
+if arch-chroot /mnt pacman -Q amd-ucode &>/dev/null; then
+  if [[ ! -f /mnt/boot/amd-ucode.img ]]; then
+    abort "AMD microcode not found at /boot/amd-ucode.img"
+  fi
+  success "AMD microcode installed: /boot/amd-ucode.img"
+fi
+
+if arch-chroot /mnt pacman -Q intel-ucode &>/dev/null; then
+  if [[ ! -f /mnt/boot/intel-ucode.img ]]; then
+    abort "Intel microcode not found at /boot/intel-ucode.img"
+  fi
+  success "Intel microcode installed: /boot/intel-ucode.img"
+fi
+
+success "Kernel and firmware verification complete."
+
+# --- Bootloader (systemd-boot) with LUKS support ---
+info "Installing systemd-boot..."
+
+# Create EFI loader directory
+mkdir -p /mnt/boot/loader
+
+# Create loader.conf
+cat > /mnt/boot/loader/loader.conf <<EOF
+default arch
+timeout 5
+console-mode max
+EOF
+
+# Get the root partition UUID
+ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PART")
+
+# Detect CPU vendor for microcode
+CPU_INFO=$(lscpu 2>/dev/null | grep -E "Vendor ID" || true)
+
+# Build initrd line based on CPU
+INITRD_LINE=""
+if echo "$CPU_INFO" | grep -qi "authenticamd\|amd"; then
+  INITRD_LINE="initrd  /amd-ucode.img"
+elif echo "$CPU_INFO" | grep -qi "genuineintel\|intel"; then
+  INITRD_LINE="initrd  /intel-ucode.img"
+else
+  INITRD_LINE="initrd  /amd-ucode.img
+initrd  /intel-ucode.img"
+fi
+
+# Get the kernel parameters
+CMDLINE="cryptdevice=UUID=${ROOT_UUID}:cryptroot:allow-discards root=/dev/mapper/cryptroot quiet"
+
+# Create the boot entry
+cat > /mnt/boot/loader/entries/arch.conf <<EOF
+title   Arch Linux
+linux   /vmlinuz-linux
+${INITRD_LINE}
+options ${CMDLINE}
+EOF
+
+# Install systemd-boot
+arch-chroot /mnt bootctl install
+
+success "systemd-boot installed."
 
 # --- Enable services ---
 arch-chroot /mnt systemctl enable NetworkManager
 arch-chroot /mnt systemctl enable sshd
 arch-chroot /mnt systemctl enable dhcpcd
+
+# --- Firewall (UFW) - block all incoming by default ---
+info "Configuring firewall (UFW)..."
+arch-chroot /mnt pacman -S --noconfirm ufw
+arch-chroot /mnt ufw default deny incoming
+arch-chroot /mnt ufw default allow outgoing
+arch-chroot /mnt ufw default allow forward
+arch-chroot /mnt ufw --force enable
+arch-chroot /mnt systemctl enable ufw
+
+success "Firewall configured: all incoming traffic blocked."
+
+# --- Auto-detect and install graphics drivers ---
+info "Detecting and configuring graphics drivers..."
+
+# Detect GPUs using lspci
+GPU_INFO=$(arch-chroot /mnt lspci -v 2>/dev/null | grep -E "VGA|Display" || true)
+
+if echo "$GPU_INFO" | grep -qi "nvidia"; then
+  info "NVIDIA GPU detected, installing drivers..."
+  arch-chroot /mnt pacman -S --noconfirm nvidia nvidia-utils nvidia-settings
+  # Add NVIDIA module to initramfs
+  arch-chroot /mnt sed -i 's/^MODULES=()/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf
+  success "NVIDIA drivers installed."
+elif echo "$GPU_INFO" | grep -qiE "amd|ati|radeon"; then
+  info "AMD/ATI GPU detected, installing drivers..."
+  arch-chroot /mnt pacman -S --noconfirm xf86-video-amdgpu mesa vulkan-radeon mesa-vulkan-radeon
+  # Ensure amdgpu is in initramfs for early KMS
+  arch-chroot /mnt sed -i 's/^MODULES=()/MODULES=(amdgpu)/' /etc/mkinitcpio.conf
+  success "AMD drivers installed."
+elif echo "$GPU_INFO" | grep -qi "intel"; then
+  info "Intel GPU detected, installing drivers..."
+  arch-chroot /mnt pacman -S --noconfirm xf86-video-intel mesa intel-media-driver mesa-vulkan-intel
+  # Ensure i915 is in initramfs for early KMS
+  arch-chroot /mnt sed -i 's/^MODULES=()/MODULES=(i915)/' /etc/mkinitcpio.conf
+  success "Intel drivers installed."
+else
+  info "No dedicated GPU detected, using default KMS (modesetting)."
+fi
+
+# Regenerate initramfs with new modules
+arch-chroot /mnt mkinitcpio -P
+
+success "Graphics drivers configured."
+
+# --- Auto-detect and install CPU microcode ---
+info "Detecting and configuring CPU microcode..."
+
+# Detect CPU vendor
+CPU_INFO=$(arch-chroot /mnt lscpu 2>/dev/null | grep -E "Vendor ID" || true)
+
+if echo "$CPU_INFO" | grep -qi "authenticamd\|amd"; then
+  info "AMD CPU detected, installing AMD microcode..."
+  arch-chroot /mnt pacman -S --noconfirm amd-ucode
+  success "AMD microcode installed."
+elif echo "$CPU_INFO" | grep -qi "genuineintel\|intel"; then
+  info "Intel CPU detected, installing Intel microcode..."
+  arch-chroot /mnt pacman -S --noconfirm intel-ucode
+  success "Intel microcode installed."
+else
+  info "CPU vendor not detected, installing both microcodes as fallback..."
+  arch-chroot /mnt pacman -S --noconfirm amd-ucode intel-ucode
+fi
+
+# Regenerate initramfs to include microcode
+arch-chroot /mnt mkinitcpio -P
+
+success "CPU microcode configured."
 
 success "System configured."
 
