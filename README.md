@@ -13,13 +13,13 @@ Boot from the [Arch Linux ISO](https://archlinux.org/download/), connect to the 
 
 ```bash
 # 1. Download the script
-curl -fsSL https://aminnairi.github.io/esginux/installation.sh -o installation.sh
+curl -LO aminnairi.github.io/esginux/install.sh
 
 # 2. Read it
-less installation.sh
+less install.sh
 
 # 3. Run it
-bash installation.sh
+bash install.sh
 ```
 
 This will:
@@ -39,7 +39,7 @@ After the first boot, log in and:
 
 ```bash
 # 1. Download the script
-curl -fsSL https://aminnairi.github.io/esginux/update.sh -o update.sh
+curl -LO aminnairi.github.io/esginux/update.sh
 
 # 2. Read it
 less update.sh
