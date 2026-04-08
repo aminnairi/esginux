@@ -706,7 +706,7 @@ success "GNOME extensions installed."
 # =============================================================================
 info "Configuring GNOME defaults..."
 
-# Input sources — French + English (for QWERTY keyboards with French locales)
+# Input sources — French + English (for QWERTY keyboards with French locales), with Compose on Right Alt
 run_gsettings "org.gnome.desktop.input-sources sources \"[('xkb', 'fr'), ('xkb', 'us')]\""
 
 # Compose key (Right Alt)
