@@ -709,6 +709,9 @@ info "Configuring GNOME defaults..."
 # Input sources — French + English (for QWERTY keyboards with French locales)
 run_gsettings "org.gnome.desktop.input-sources sources \"[('xkb', 'fr'), ('xkb', 'us')]\""
 
+# Compose key (Right Alt)
+run_gsettings "org.gnome.desktop.input-sources xkb-options \"['compose:ralt']\""
+
 # Clock format — 24h
 run_gsettings "org.gnome.desktop.interface clock-format '24h'"
 
