@@ -28,7 +28,7 @@ This will:
   - EFI boot — 1 Go (FAT32)
   - Swap — RAM × 1.5
   - Root — remaining space (LUKS2 encrypted, ext4)
-- **Install** the base system: kernel, firmware, systemd-boot, NetworkManager, OpenSSH, sudo, base-devel, microcode
+- **Install** the base system: kernel, firmware, GRUB, NetworkManager, OpenSSH, sudo, base-devel, microcode
 - **Configure** timezone (Europe/Paris), locales (en_US + fr_FR), French keyboard
 - **Create** root + unprivileged user (wheel/sudo access)
 - **Reboot** automatically

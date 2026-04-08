@@ -212,45 +212,16 @@ mkinitcpio -P
 
 success "CPU microcode configured."
 
-# --- Update systemd-boot entry with correct microcode ---
-info "Updating systemd-boot configuration..."
+# --- Update GRUB configuration ---
+info "Updating GRUB configuration..."
 
-# Detect CPU vendor for microcode
-CPU_INFO=$(lscpu 2>/dev/null | grep -E "Vendor ID" || true)
-
-# Determine which initrd to use based on CPU
-INITRD_LINE=""
-if echo "$CPU_INFO" | grep -qi "authenticamd\|amd"; then
-  if [[ -f /boot/amd-ucode.img ]]; then
-    INITRD_LINE="initrd  /amd-ucode.img"
-  fi
-elif echo "$CPU_INFO" | grep -qi "genuineintel\|intel"; then
-  if [[ -f /boot/intel-ucode.img ]]; then
-    INITRD_LINE="initrd  /intel-ucode.img"
-  fi
-fi
-
-# Get current kernel cmdline
-CURRENT_CMDLINE=""
-if [[ -f /boot/loader/entries/arch.conf ]]; then
-  CURRENT_CMDLINE=$(grep "^options" /boot/loader/entries/arch.conf | sed 's/^options //')
-fi
-
-# Update boot entry if initrd changed
-if [[ -n "$INITRD_LINE" ]] && [[ -f /boot/loader/entries/arch.conf ]]; then
-  cat > /boot/loader/entries/arch.conf <<EOF
-title   Arch Linux
-linux   /vmlinuz-linux
-${INITRD_LINE}
-options ${CURRENT_CMDLINE}
-EOF
-  success "systemd-boot entry updated with CPU-specific microcode."
-fi
-
-# Install systemd-boot if not already installed
-if [[ ! -f /boot/EFI/systemd/systemd-bootx64.efi ]]; then
-  info "Installing systemd-boot..."
-  bootctl install
+# Ensure GRUB is installed
+if pacman -Q grub &>/dev/null; then
+  # Regenerate GRUB config
+  grub-mkconfig -o /boot/grub/grub.cfg
+  success "GRUB configuration regenerated."
+else
+  warn "GRUB not installed, skipping bootloader update."
 fi
 
 success "Bootloader configuration complete."

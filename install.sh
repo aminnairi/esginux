@@ -213,7 +213,8 @@ pacstrap -K /mnt \
   linux-firmware \
   linux-headers \
   base-devel \
-  systemd \
+  grub \
+  efibootmgr \
   networkmanager \
   vim \
   sudo \
@@ -335,51 +336,22 @@ fi
 
 success "Kernel and firmware verification complete."
 
-# --- Bootloader (systemd-boot) with LUKS support ---
-info "Installing systemd-boot..."
-
-# Create EFI loader directory
-mkdir -p /mnt/boot/loader
-
-# Create loader.conf
-cat > /mnt/boot/loader/loader.conf <<EOF
-default arch
-timeout 5
-console-mode max
-EOF
+# --- Bootloader (GRUB) with LUKS support ---
+info "Installing GRUB bootloader..."
 
 # Get the root partition UUID
-ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PART")
+CRYPT_UUID=$(blkid -s UUID -o value "$ROOT_PART")
 
-# Detect CPU vendor for microcode
-CPU_INFO=$(lscpu 2>/dev/null | grep -E "Vendor ID" || true)
+# Install GRUB for UEFI
+arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
 
-# Build initrd line based on CPU
-INITRD_LINE=""
-if echo "$CPU_INFO" | grep -qi "authenticamd\|amd"; then
-  INITRD_LINE="initrd  /amd-ucode.img"
-elif echo "$CPU_INFO" | grep -qi "genuineintel\|intel"; then
-  INITRD_LINE="initrd  /intel-ucode.img"
-else
-  INITRD_LINE="initrd  /amd-ucode.img
-initrd  /intel-ucode.img"
-fi
+# Configure GRUB with LUKS parameters
+arch-chroot /mnt sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=\"/GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${CRYPT_UUID}:cryptroot:allow-discards /" /etc/default/grub
 
-# Get the kernel parameters
-CMDLINE="cryptdevice=UUID=${ROOT_UUID}:cryptroot:allow-discards root=/dev/mapper/cryptroot quiet"
+# Generate GRUB configuration
+arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
-# Create the boot entry
-cat > /mnt/boot/loader/entries/arch.conf <<EOF
-title   Arch Linux
-linux   /vmlinuz-linux
-${INITRD_LINE}
-options ${CMDLINE}
-EOF
-
-# Install systemd-boot
-arch-chroot /mnt bootctl install
-
-success "systemd-boot installed."
+success "GRUB installed."
 
 # --- Enable services ---
 arch-chroot /mnt systemctl enable NetworkManager
