@@ -86,6 +86,175 @@ sed -i '/^\[multilib\]/,/Include/ s/^#//' /etc/pacman.conf
 info "Synchronizing package databases..."
 pacman -Sy --noconfirm
 
+# Ensure kernel and firmware are installed
+info "Ensuring kernel and firmware are properly installed..."
+pacman -S --needed --noconfirm linux linux-firmware
+
+# Verify kernel exists
+if [[ ! -f /boot/vmlinuz-linux ]]; then
+  warn "Kernel not found at /boot/vmlinuz-linux"
+else
+  success "Kernel installed: /boot/vmlinuz-linux"
+fi
+
+# Verify initramfs exists
+if [[ ! -f /boot/initramfs-linux.img ]]; then
+  warn "Initramfs not found at /boot/initramfs-linux.img"
+else
+  success "Initramfs generated: /boot/initramfs-linux.img"
+fi
+
+# Verify microcode is installed
+if pacman -Q amd-ucode &>/dev/null; then
+  if [[ ! -f /boot/amd-ucode.img ]]; then
+    warn "AMD microcode not found at /boot/amd-ucode.img"
+  else
+    success "AMD microcode installed: /boot/amd-ucode.img"
+  fi
+fi
+
+if pacman -Q intel-ucode &>/dev/null; then
+  if [[ ! -f /boot/intel-ucode.img ]]; then
+    warn "Intel microcode not found at /boot/intel-ucode.img"
+  else
+    success "Intel microcode installed: /boot/intel-ucode.img"
+  fi
+fi
+
+success "Kernel and firmware verification complete."
+
+# =============================================================================
+# 2b. Configure firewall (UFW)
+# =============================================================================
+info "Installing and configuring firewall (UFW)..."
+pacman -S --needed --noconfirm ufw
+
+# Block all incoming, allow outgoing and forward
+ufw default deny incoming
+ufw default allow outgoing
+ufw default allow forward
+ufw --force enable
+systemctl enable ufw
+
+success "Firewall configured: all incoming traffic blocked."
+
+# =============================================================================
+# 2c. Auto-detect and install graphics drivers
+# =============================================================================
+info "Detecting and configuring graphics drivers..."
+
+# Detect GPUs using lspci
+GPU_INFO=$(lspci -v 2>/dev/null | grep -E "VGA|Display" || true)
+
+if echo "$GPU_INFO" | grep -qi "nvidia"; then
+  info "NVIDIA GPU detected, installing drivers..."
+  pacman -S --needed --noconfirm nvidia nvidia-utils nvidia-settings
+  # Add NVIDIA module to initramfs
+  if ! grep -q "^MODULES=(nvidia" /etc/mkinitcpio.conf 2>/dev/null; then
+    sed -i 's/^MODULES=()/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf
+  fi
+  # Enable nvidia-drm for early modesetting
+  if ! grep -q "nvidia-drm.modeset=1" /etc/kernel cmdline 2>/dev/null; then
+    warn "Add 'nvidia-drm.modeset=1' to kernel cmdline for best results"
+  fi
+  success "NVIDIA drivers installed."
+elif echo "$GPU_INFO" | grep -qiE "amd|ati|radeon"; then
+  info "AMD/ATI GPU detected, installing drivers..."
+  pacman -S --needed --noconfirm xf86-video-amdgpu mesa vulkan-radeon libva-amdgpu-driver
+  # Ensure amdgpu is in initramfs for early KMS
+  if ! grep -q "^MODULES=(amdgpu)" /etc/mkinitcpio.conf 2>/dev/null; then
+    sed -i 's/^MODULES=()/MODULES=(amdgpu)/' /etc/mkinitcpio.conf
+  fi
+  success "AMD drivers installed."
+elif echo "$GPU_INFO" | grep -qi "intel"; then
+  info "Intel GPU detected, installing drivers..."
+  pacman -S --needed --noconfirm xf86-video-intel mesa intel-media-driver va-intel-driver
+  # Ensure i915 is in initramfs for early KMS
+  if ! grep -q "^MODULES=(i915)" /etc/mkinitcpio.conf 2>/dev/null; then
+    sed -i 's/^MODULES=()/MODULES=(i915)/' /etc/mkinitcpio.conf
+  fi
+  success "Intel drivers installed."
+else
+  info "No dedicated GPU detected, using default KMS (modesetting)."
+fi
+
+# Regenerate initramfs if modules were added
+if grep -q "^MODULES=(nvidia\|amdgpu\|i915)" /etc/mkinitcpio.conf 2>/dev/null; then
+  info "Regenerating initramfs with new modules..."
+  mkinitcpio -P
+fi
+
+success "Graphics drivers configured."
+
+# =============================================================================
+# 2d. Auto-detect and install CPU microcode
+# =============================================================================
+info "Detecting and configuring CPU microcode..."
+
+# Detect CPU vendor
+CPU_INFO=$(lscpu 2>/dev/null | grep -E "Vendor ID" || true)
+
+if echo "$CPU_INFO" | grep -qi "authenticamd\|amd"; then
+  info "AMD CPU detected, installing AMD microcode..."
+  pacman -S --needed --noconfirm amd-ucode
+  success "AMD microcode installed."
+elif echo "$CPU_INFO" | grep -qi "genuineintel\|intel"; then
+  info "Intel CPU detected, installing Intel microcode..."
+  pacman -S --needed --noconfirm intel-ucode
+  success "Intel microcode installed."
+else
+  info "CPU vendor not detected, installing both microcodes as fallback..."
+  pacman -S --needed --noconfirm amd-ucode intel-ucode
+fi
+
+# Regenerate initramfs to include microcode
+mkinitcpio -P
+
+success "CPU microcode configured."
+
+# --- Update systemd-boot entry with correct microcode ---
+info "Updating systemd-boot configuration..."
+
+# Detect CPU vendor for microcode
+CPU_INFO=$(lscpu 2>/dev/null | grep -E "Vendor ID" || true)
+
+# Determine which initrd to use based on CPU
+INITRD_LINE=""
+if echo "$CPU_INFO" | grep -qi "authenticamd\|amd"; then
+  if [[ -f /boot/amd-ucode.img ]]; then
+    INITRD_LINE="initrd  /amd-ucode.img"
+  fi
+elif echo "$CPU_INFO" | grep -qi "genuineintel\|intel"; then
+  if [[ -f /boot/intel-ucode.img ]]; then
+    INITRD_LINE="initrd  /intel-ucode.img"
+  fi
+fi
+
+# Get current kernel cmdline
+CURRENT_CMDLINE=""
+if [[ -f /boot/loader/entries/arch.conf ]]; then
+  CURRENT_CMDLINE=$(grep "^options" /boot/loader/entries/arch.conf | sed 's/^options //')
+fi
+
+# Update boot entry if initrd changed
+if [[ -n "$INITRD_LINE" ]] && [[ -f /boot/loader/entries/arch.conf ]]; then
+  cat > /boot/loader/entries/arch.conf <<EOF
+title   Arch Linux
+linux   /vmlinuz-linux
+${INITRD_LINE}
+options ${CURRENT_CMDLINE}
+EOF
+  success "systemd-boot entry updated with CPU-specific microcode."
+fi
+
+# Install systemd-boot if not already installed
+if [[ ! -f /boot/EFI/systemd/systemd-bootx64.efi ]]; then
+  info "Installing systemd-boot..."
+  bootctl install
+fi
+
+success "Bootloader configuration complete."
+
 # =============================================================================
 # 3. Install yay (AUR helper)
 # =============================================================================
@@ -512,6 +681,7 @@ pacman -S --needed --noconfirm \
   python-pip \
   nodejs \
   npm \
+  pciutils \
   || abort "Failed to install extra utilities."
 
 success "Extra utilities installed."
